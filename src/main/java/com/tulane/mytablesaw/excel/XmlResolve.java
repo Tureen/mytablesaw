@@ -20,29 +20,27 @@ import java.util.stream.Collectors;
 
 public class XmlResolve {
 
-    private SimpleDateFormat datetimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-    private SimpleDateFormat msdatetimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:SSS");//毫秒日期格式
+    private final SimpleDateFormat datetimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    private final SimpleDateFormat msdatetimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:SSS");//毫秒日期格式
     private final DataFormatter formatter = new DataFormatter();
 
     private final static int DATE_FORMAT_INDEX28 = 28;//poi中文日期格式编码：m月d日:dataFormat=28
     private final static int DATE_FORMAT_INDEX31 = 31;//yyyy年m月d日:dataFormat=31
 
-    private static Pattern SpecCharPattern = Pattern
+    private static final Pattern SpecCharPattern = Pattern
             .compile("[\n`~!@#$^&*()+=|{}':;',\\[\\]<>/?~！@#￥……&*（）+|{}【】‘；：”“’。， 、？]");
 
-    private List<XmlData> stores = new LinkedList<>();
-    private Map<Integer, List<XmlData>> storesGroupByRow = new LinkedHashMap<>();
-    private Map<Integer, List<XmlData>> storesGroupByCol = new LinkedHashMap<>();
+    private final List<XmlData> stores = new LinkedList<>();
 
-    private Stack<XmlData> dataStack = new Stack<>();
+    private final Stack<XmlData> dataStack = new Stack<>();
 
-    class XmlData{
-        private XSSFDataType dataType;
-        private short formatIndex;
-        private String formatString;
+    static class XmlData{
+        private final XSSFDataType dataType;
+        private final short formatIndex;
+        private final String formatString;
         private String context;
 
-        private XmlRow xmlRow;
+        private final XmlRow xmlRow;
 
         public XmlData(XSSFDataType dataType, short formatIndex, String formatString, XmlRow xmlRow) {
             this.dataType = dataType;
@@ -76,9 +74,9 @@ public class XmlResolve {
         }
     }
 
-    class XmlRow{
-        private int row;
-        private int col;
+    static class XmlRow{
+        private final  int row;
+        private final  int col;
 
         public XmlRow(int row, int col) {
             this.row = row;
@@ -191,7 +189,7 @@ public class XmlResolve {
                     String string = richTextString.getString();
                     context = string == null ? "" : string;
                 } catch (NumberFormatException ex) {
-                    System.out.println("Failed to parse SST index '" + sstIndex + "': " + ex.toString());
+                    System.out.println("Failed to parse SST index '" + sstIndex + "': " + ex);
                 }
                 break;
 
@@ -199,7 +197,7 @@ public class XmlResolve {
                 if (StringUtils.isNotBlank(context)) {
                     double n = Double.parseDouble(context);
                     //m月d日:dataFormat=28,yyyy年m月d日:dataFormat=31
-                    boolean isADateFormat = false;
+                    boolean isADateFormat;
                     try {
                         isADateFormat = DateUtil.isADateFormat(xmlData.getFormatIndex(), xmlData.getFormatString());
                     } catch (Exception e) {
@@ -209,7 +207,7 @@ public class XmlResolve {
                     if (isADateFormat
                             || DATE_FORMAT_INDEX31 == xmlData.formatIndex || DATE_FORMAT_INDEX28 == xmlData.formatIndex) {
                         Date date = DateUtil.getJavaDate(n);
-                        /**
+                        /*
                          * Excel传入的日期如果解析不了的话，date的值为null
                          * 直接传Excel的内容到日期解析类的之后会做错误信息处理
                          */
@@ -218,7 +216,7 @@ public class XmlResolve {
                             break;
                         }
                         String timestamp = String.valueOf(date.getTime());//日期类型通过getTime()方法获取从1970年1月1日至今的毫秒值
-                        /**
+                        /*
                          * 如果 ms(毫秒值) 是以“000”结尾的，说明该日期的最小单位是 s（秒）
                          * 如果 ms(毫秒值) 是以类似“123”结尾的，说明该日期的最小单位是 ms（毫秒）
                          */
@@ -259,12 +257,12 @@ public class XmlResolve {
         return stores;
     }
 
-    public Map<Integer, List<XmlData>> getStoresGroupByRow() {
+    public static Map<Integer, List<XmlData>> getStoresGroupByRow(List<XmlData> stores) {
         return stores.stream().collect(
                 Collectors.groupingBy(xmlData -> xmlData.getXmlRow().getRow(), LinkedHashMap::new, Collectors.toCollection(LinkedList::new)));
     }
 
-    public Map<Integer, List<XmlData>> getStoresGroupByCol() {
+    public static Map<Integer, List<XmlData>> getStoresGroupByCol(List<XmlData> stores) {
         return stores.stream().collect(
                 Collectors.groupingBy(xmlData -> xmlData.getXmlRow().getCol(), LinkedHashMap::new, Collectors.toCollection(LinkedList::new)));
     }
