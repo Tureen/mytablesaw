@@ -6,30 +6,25 @@ import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.xssf.eventusermodel.XSSFReader;
 import org.apache.poi.xssf.model.SharedStringsTable;
 import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.XMLReaderFactory;
 
 import javax.xml.XMLConstants;
-import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
-import java.util.List;
-import java.util.Map;
 
 public class ExcelAnalyze {
 
-    private XmlHandler xmlSheetHandler;
-    private XmlResolve xmlResolve;
+    private final XmlHandler xmlSheetHandler;
+    private final XmlResolve xmlResolve;
 
     public ExcelAnalyze() {
         this.xmlResolve = new XmlResolve();
         this.xmlSheetHandler = new XmlHandler(xmlResolve);
     }
 
-    public void exec(File file) {
+    public void exec(InputStream stream) {
         try {
-            XSSFReader.SheetIterator sheets = getSheets(xmlSheetHandler, file);
+            XSSFReader.SheetIterator sheets = getSheets(xmlSheetHandler, stream);
             XMLReader parser = getParser(xmlSheetHandler);
             while (sheets.hasNext()) {
                 try(InputStream sheet = sheets.next()){
@@ -39,17 +34,13 @@ public class ExcelAnalyze {
                     }
                 }
             }
-        } catch (SAXException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private XSSFReader.SheetIterator getSheets(XmlHandler sheetHandler, File tempFile) throws Exception {
-        OPCPackage pkg = OPCPackage.open(tempFile);
+    private XSSFReader.SheetIterator getSheets(XmlHandler sheetHandler, InputStream stream) throws Exception {
+        OPCPackage pkg = OPCPackage.open(stream);
         XSSFReader r = new XSSFReader(pkg);
 
         r.setUseReadOnlySharedStringsTable(false);

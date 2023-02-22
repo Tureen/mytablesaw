@@ -20,13 +20,18 @@ public class TableSawManager {
         Map<Integer, List<XmlResolve.XmlData>> storesGroupByCol = xmlResolve.getStoresGroupByCol();
 
         table = Table.create("123");
-        storesGroupByCol.forEach((row, xmlData) -> {
-            List<String> collect = xmlData.stream().map(XmlResolve.XmlData::getContext).collect(Collectors.toList());
-
+        storesGroupByCol.forEach((col, xmlData) -> {
             StringColumn strings = StringColumn.create(
                     xmlData.get(0).getContext(),
-                    collect);
+                    xmlData.stream()
+                            .filter(x -> x.getXmlRow().getRow() != 0)
+                            .map(XmlResolve.XmlData::getContext)
+                            .collect(Collectors.toList()));
             table.addColumns(strings);
         });
+    }
+
+    public Table getTable() {
+        return table;
     }
 }
