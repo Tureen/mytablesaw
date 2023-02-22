@@ -70,11 +70,7 @@ public class ExcelAnalyze {
         return parser;
     }
 
-    public static void main(String[] args) {
-        ExcelAnalyze analyze = new ExcelAnalyze();
-        analyze.exec(new File("/Users/Tulane/tmp/excel/测试.xlsx"));
-        Map<Integer, List<XmlResolve.XmlData>> storesGroupByRow = analyze.xmlResolve.getStoresGroupByRow();
-        Map<Integer, List<XmlResolve.XmlData>> storesGroupByCol = analyze.xmlResolve.getStoresGroupByCol();
-        System.out.println(storesGroupByRow);
+    public XmlResolve getXmlResolve() {
+        return xmlResolve;
     }
 }
