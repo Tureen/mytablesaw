@@ -34,7 +34,7 @@ public class XmlResolve {
 
     private final Stack<XmlData> dataStack = new Stack<>();
 
-    static class XmlData{
+    public static class XmlData{
         private final XSSFDataType dataType;
         private final short formatIndex;
         private final String formatString;
