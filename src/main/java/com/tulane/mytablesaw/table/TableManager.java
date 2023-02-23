@@ -1,50 +1,68 @@
-package com.tulane.mytablesaw.excel.index;
+package com.tulane.mytablesaw.table;
 
-import com.tulane.mytablesaw.excel.XmlData;
+import com.tulane.mytablesaw.excel.model.XmlData;
+import com.tulane.mytablesaw.excel.XmlResolve;
+import com.tulane.mytablesaw.table.index.TableIndexRow;
+import com.tulane.mytablesaw.table.index.TableIndexRowManager;
 
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
-public class TableIndexRow {
-    private int indexRow;
-    private String name;
-    private List<XmlData> tableIndexXmlDatas;
-    private int tableBorderRow;
+/**
+ * 表格管理类
+ * @author Tulane
+ */
+public class TableManager {
 
-    public TableIndexRow(int indexRow, String name, List<XmlData> tableIndexXmlDatas) {
-        this.indexRow = indexRow;
-        this.name = name;
-        this.tableIndexXmlDatas = tableIndexXmlDatas;
-        this.tableBorderRow = -1; // 数据无边界
+    /**
+     * 表格标识行集合
+     */
+    private TableIndexRowManager tableIndexRowManager;
+
+    private List<XmlData> store;
+    private Map<Integer, LinkedList<XmlData>> storesGroupByRow;
+    private Map<Integer, LinkedList<XmlData>> storesGroupByCol;
+
+    private List<TableData> tableDatas;
+
+    public TableManager(Map<String, List<String>> tableTitleIndexs, List<XmlData> store) {
+        this.tableIndexRowManager = new TableIndexRowManager(tableTitleIndexs);
+        this.store = store;
+        this.tableDatas = new LinkedList<>();
     }
 
-    public List<XmlData> getTableIndexXmlDatas() {
-        return tableIndexXmlDatas;
+    public void init(){
+        tableIndexRowManager.init(getStoresGroupByRow());
+        createTableData();
     }
 
-    public void setTableBorderRow(int tableBorderRow) {
-        this.tableBorderRow = tableBorderRow;
+    public void createTableData(){
+        for (TableIndexRow tableIndexRow : tableIndexRowManager.getTableIndexRows()) {
+            Map<Integer, LinkedList<XmlData>> datas = buildTableDatas(tableIndexRow);
+            tableDatas.add(new TableData(tableIndexRow, datas));
+        }
     }
 
-    public Map<Integer, LinkedList<XmlData>> buildTableXmlDatas(Map<Integer, LinkedList<XmlData>> storesGroupByCol){
+    /**
+     * 生成表格数据
+     * @param tableIndexRow
+     * @return
+     */
+    public Map<Integer, LinkedList<XmlData>> buildTableDatas(TableIndexRow tableIndexRow){
         Map<Integer, LinkedList<XmlData>> tableXmlDatas = new LinkedHashMap<>();
-        for (XmlData indexXmlData : tableIndexXmlDatas) {
+        for (XmlData indexXmlData : tableIndexRow.getTableIndexXmlDatas()) {
             int col = indexXmlData.getXmlPosition().getCol();
-            LinkedList<XmlData> xmlDatas = storesGroupByCol.get(col);
+            LinkedList<XmlData> xmlDatas = getStoresGroupByCol().get(col);
             xmlDatas = xmlDatas.stream()
                     .filter(x -> {
                         int currentRow = x.getXmlPosition().getRow();
-                        boolean isStart = currentRow > indexRow;
-                        boolean isEnd = tableBorderRow == -1 || currentRow < tableBorderRow;
+                        boolean isStart = currentRow > tableIndexRow.getIndexRow();
+                        boolean isEnd = tableIndexRow.getTableBorderRow() == -1 || currentRow < tableIndexRow.getTableBorderRow();
                         return isStart && isEnd;
                     })
                     .collect(Collectors.toCollection(LinkedList::new));
             tableXmlDatas.put(col, xmlDatas);
         }
-
         filterTableDataWhichOutBorder(tableXmlDatas);
         return tableXmlDatas;
     }
@@ -64,7 +82,7 @@ public class TableIndexRow {
      * 过滤掉超出边界的数据: 空行之后的数据直接丢弃
      * @param tableXmlDatas
      */
-    private static void filterTableDataWhichEmptyRow(Map<Integer, LinkedList<XmlData>> tableXmlDatas) {
+    private void filterTableDataWhichEmptyRow(Map<Integer, LinkedList<XmlData>> tableXmlDatas) {
         for (Map.Entry<Integer, LinkedList<XmlData>> entry : tableXmlDatas.entrySet()) {
             LinkedList<XmlData> newTableXmlDatas = new LinkedList<>();
             for (XmlData xmlData : entry.getValue()) {
@@ -104,7 +122,21 @@ public class TableIndexRow {
         }
     }
 
-    public String getName() {
-        return name;
+    public Map<Integer, LinkedList<XmlData>> getStoresGroupByRow() {
+        if(storesGroupByRow == null){
+            storesGroupByRow = XmlResolve.getStoresGroupByRow(store);
+        }
+        return storesGroupByRow;
+    }
+
+    public Map<Integer, LinkedList<XmlData>> getStoresGroupByCol() {
+        if(storesGroupByCol == null){
+            storesGroupByCol = XmlResolve.getStoresGroupByCol(store);
+        }
+        return storesGroupByCol;
+    }
+
+    public List<TableData> getTableDatas() {
+        return tableDatas;
     }
 }

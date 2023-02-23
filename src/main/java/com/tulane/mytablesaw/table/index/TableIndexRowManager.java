@@ -1,25 +1,86 @@
-package com.tulane.mytablesaw.excel.index;
+package com.tulane.mytablesaw.table.index;
 
-import com.tulane.mytablesaw.excel.XmlData;
 import com.tulane.mytablesaw.excel.XmlResolve;
+import com.tulane.mytablesaw.excel.model.XmlData;
 
-import java.util.*;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
-public class TableIndexRows {
+/**
+ * 表格标识行管理类
+ *
+ * @author Tulane
+ * @date 2023/2/23
+ */
+public class TableIndexRowManager {
 
+    /**
+     * 表格标识行集合
+     */
     private List<TableIndexRow> tableIndexRows;
 
-    public TableIndexRows() {
+    private TableIndexPools tableIndexPools;
+
+    public TableIndexRowManager(Map<String, List<String>> tableTitleIndexs) {
+        this.tableIndexPools = new TableIndexPools(tableTitleIndexs);
         this.tableIndexRows = new LinkedList<>();
     }
 
-    public void addTableIndexRow(TableIndexRow tableIndexRow){
-        tableIndexRows.add(tableIndexRow);
+    public void init(Map<Integer, LinkedList<XmlData>> storesGroupByRow){
+        // 生成表格标识行集合
+        generateTableIndexRows(storesGroupByRow);
+        // 计算表格底部边界
+        calculateTableBorderRow();
     }
 
+    /**
+     * 生成表格标识行集合
+     * (根据用户填入的标识行名称组合, 匹配上的单元格构建成标识行对象)
+     * @param storesGroupByRow
+     */
+    private void generateTableIndexRows(Map<Integer, LinkedList<XmlData>> storesGroupByRow) {
+        storesGroupByRow.forEach((row, storesByRow) -> {
+            Map<String, List<XmlData>> xmlDatasWhichMatchIndex = findXmlDatasWhichMatchIndex(storesByRow);
+            xmlDatasWhichMatchIndex.forEach((name, xmlDatas) ->
+                    tableIndexRows.add(new TableIndexRow(row, name, xmlDatas)));
+        });
+    }
+
+    /**
+     * 检索完全匹配标识行的单元格集合
+     * @param storesGroup
+     * @return
+     */
+    private Map<String, List<XmlData>> findXmlDatasWhichMatchIndex(List<XmlData> storesGroup){
+        Map<String, List<XmlData>> xmlDataForTableIndex = new LinkedHashMap<>();
+        // 记录已作为表格标识行的单元格, 防止重复用在不同表格
+        Set<XmlData> useXmlData = new HashSet<>();
+        tableIndexPools.tryMatchIndexs(storesGroup, matchTableIndexPools -> {
+            for (TableIndexPools.TableIndexPool matchTableIndexPool : matchTableIndexPools) {
+                // 从完全匹配标识行的池子中, 获取匹配的单元格
+                Optional<List<XmlData>> tableIndexXmlDatas = matchTableIndexPool.buildXmlDataForTableIndex(useXmlData);
+                tableIndexXmlDatas.ifPresent(xmlDatas ->
+                        xmlDataForTableIndex.put(matchTableIndexPool.getName(), xmlDatas));
+
+            }
+        });
+        return xmlDataForTableIndex;
+    }
+
+    /**
+     * 计算表格底部边界
+     */
     public void calculateTableBorderRow(){
+        // 计算所有单元格的底部边界
         Map<XmlData, Integer> xmlDatasBorderRow = calculateXmlDataBorderRow();
-        // 表格边界计算: 同表格的所有标识行单元格, 找到最小值, 赋值为表格边界
+        // 计算每个表格的底部边界: 同表格的所有标识行单元格, 找到最小值, 赋值为表格边界
         for (TableIndexRow tableIndexRow : tableIndexRows) {
             int tableBorderRow = Integer.MAX_VALUE;
             for (XmlData xmlData : tableIndexRow.getTableIndexXmlDatas()) {
@@ -35,6 +96,12 @@ public class TableIndexRows {
         }
     }
 
+    /**
+     * 计算所有单元格底部边界
+     * 1. 划分出每个表格标识行的占用位置
+     * 2. 遍历标识行: 计算不重叠的底部边界
+     * @return
+     */
     private Map<XmlData, Integer> calculateXmlDataBorderRow(){
         // 聚合同列的标识行, 用于计算表格边界
         Map<Integer, List<XmlData>> xmlDataFromOverColumn = getTogetherXmlDataWithOverColumn();

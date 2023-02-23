@@ -1,4 +1,4 @@
-package com.tulane.mytablesaw.excel;
+package com.tulane.mytablesaw.excel.enums;
 
 public enum XSSFDataType {
 

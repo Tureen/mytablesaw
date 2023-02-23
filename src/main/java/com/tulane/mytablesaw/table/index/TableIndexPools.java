@@ -1,10 +1,22 @@
-package com.tulane.mytablesaw.excel.index;
+package com.tulane.mytablesaw.table.index;
 
-import com.tulane.mytablesaw.excel.XmlData;
+import com.tulane.mytablesaw.excel.model.XmlData;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.Set;
 import java.util.function.Consumer;
 
+/**
+ * 标识行占用池, 用于匹配单元格标识行
+ * @author Tulane
+ */
 public class TableIndexPools {
     private List<TableIndexPool> tableIndexPools;
     private Map<String, List<String>> tableTitleIndexs;
@@ -15,20 +27,30 @@ public class TableIndexPools {
         init();
     }
 
-    private void init() {
+    public void init() {
         for (Map.Entry<String, List<String>> titleIndexsEntry : tableTitleIndexs.entrySet()) {
             tableIndexPools.add(new TableIndexPool(titleIndexsEntry.getKey(), titleIndexsEntry.getValue()));
         }
     }
 
+    /**
+     * 尝试匹配标识行
+     * @param storesGroup 某一行的单元格集合
+     * @param consumer 存在完全匹配的池子则调用函数, 传入匹配标识行的池子
+     */
     public void tryMatchIndexs(List<XmlData> storesGroup, Consumer<List<TableIndexPool>> consumer) {
+        // 遍历: 单元格匹配标识行
         for (XmlData xmlData : storesGroup) {
             tryMatchIndex(xmlData);
         }
-        List<TableIndexPool> matchAllIndex = isMatchAllIndex();
-        if (!matchAllIndex.isEmpty()) {
-            consumer.accept(matchAllIndex);
+        // 获取完全匹配标识行的池子
+        List<TableIndexPool> matchTableIndex = getAllMatchTableIndex();
+        // 若存在完全匹配的池子, 调用函数
+        // (函数目前用于得到匹配标识行的单元格对象, 用于生成标识行对象)
+        if (!matchTableIndex.isEmpty()) {
+            consumer.accept(matchTableIndex);
         }
+        // 清空池子, 用于下一行的匹配
         clearPools();
     }
 
@@ -38,7 +60,7 @@ public class TableIndexPools {
         }
     }
 
-    private List<TableIndexPool> isMatchAllIndex() {
+    private List<TableIndexPool> getAllMatchTableIndex() {
         List<TableIndexPool> matchTableIndexPools = new LinkedList<>();
         for (TableIndexPool tableIndexPool : tableIndexPools) {
             if (tableIndexPool.isMatchAllIndex()) {

@@ -1,12 +1,19 @@
-package com.tulane.mytablesaw.excel;
+package com.tulane.mytablesaw;
 
-import com.tulane.mytablesaw.excel.index.TableIndexRow;
-import com.tulane.mytablesaw.excel.index.TableIndexRows;
+import com.tulane.mytablesaw.excel.ExcelAnalyze;
+import com.tulane.mytablesaw.excel.model.XmlData;
+import com.tulane.mytablesaw.table.TableData;
+import com.tulane.mytablesaw.table.TableManager;
 import tech.tablesaw.api.StringColumn;
 import tech.tablesaw.api.Table;
 
 import java.io.InputStream;
-import java.util.*;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class Test {
@@ -22,33 +29,23 @@ public class Test {
         tableTitleIndexs.put("单体-客户喜好", Arrays.asList("客户编号", "客户爱好"));
         tableTitleIndexs.put("单头-银行信息", Arrays.asList("银行ID", "银行账号"));
 
-        TableSawManager tablesawManager = new TableSawManager(tableTitleIndexs);
-        Map<Integer, LinkedList<XmlData>> storesGroupByRow = XmlResolve.getStoresGroupByRow(analyze.getXmlResolve().getStores());
+        List<XmlData> stores = analyze.getXmlResolve().getStores();
 
         // 构建标识行对象, 每个标识行对象 (TableIndexRow) 就是一个表格
-        TableIndexRows tableIndexRows = new TableIndexRows();
-        storesGroupByRow.forEach((row, storesByRow) -> {
-            Map<String, List<XmlData>> titleIndex = tablesawManager.findTitleIndex(storesByRow);
-            titleIndex.forEach((name, xmlDatas) ->
-                    tableIndexRows.addTableIndexRow(new TableIndexRow(row, name, xmlDatas)));
-        });
+        TableManager tableManager = new TableManager(tableTitleIndexs, stores);
+        tableManager.init();
 
-        // 计算表格边界
-        tableIndexRows.calculateTableBorderRow();
 
         List<Table> tables = new LinkedList<>();
-        Map<Integer, LinkedList<XmlData>> storesGroupByCol = XmlResolve.getStoresGroupByCol(analyze.getXmlResolve().getStores());
-        for (TableIndexRow tableIndexRow : tableIndexRows.getTableIndexRows()) {
 
-            Map<Integer, List<XmlData>> tableIndexRowGroup = tableIndexRow.getTableIndexXmlDatas().stream()
+        for (TableData tableData : tableManager.getTableDatas()) {
+
+            Map<Integer, List<XmlData>> tableIndexRowGroup = tableData.getTableIndexRow().getTableIndexXmlDatas().stream()
                     .collect(Collectors.groupingBy(xmlData -> xmlData.getXmlPosition().getCol()));
-
-            Map<Integer, LinkedList<XmlData>> datas = tableIndexRow.buildTableXmlDatas(storesGroupByCol);
-
 
             Table table = Table.create(UUID.randomUUID().toString().replaceAll("-", ""));
             tables.add(table);
-            datas.forEach((col, xmlData) -> {
+            tableData.getTableDatasByCol().forEach((col, xmlData) -> {
                 XmlData indexXmlData = tableIndexRowGroup.get(col).get(0);
                 StringColumn strings = StringColumn.create(
                         indexXmlData.getContext(),

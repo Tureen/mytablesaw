@@ -1,4 +1,6 @@
-package com.tulane.mytablesaw.excel;
+package com.tulane.mytablesaw.excel.model;
+
+import com.tulane.mytablesaw.excel.enums.XSSFDataType;
 
 public class XmlData {
     private final XSSFDataType dataType;
