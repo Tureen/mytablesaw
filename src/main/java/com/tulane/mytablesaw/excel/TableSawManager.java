@@ -1,11 +1,9 @@
 package com.tulane.mytablesaw.excel;
 
 import com.tulane.mytablesaw.excel.index.TableIndexPools;
-import tech.tablesaw.api.StringColumn;
 import tech.tablesaw.api.Table;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class TableSawManager {
 
@@ -20,11 +18,16 @@ public class TableSawManager {
         this.tableIndexPools = new TableIndexPools(tableTitleIndexs);
     }
 
-    public Map<String, List<XmlResolve.XmlData>> findTitleIndex(List<XmlResolve.XmlData> storesGroup){
-        Map<String, List<XmlResolve.XmlData>> xmlDataForTableIndex = new LinkedHashMap<>();
-        tableIndexPools.tryMatchIndexs(storesGroup, matchTitlePools -> {
-            for (TableIndexPools.TableIndexPool matchTableIndexPool : matchTitlePools) {
-                xmlDataForTableIndex.put(matchTableIndexPool.getName(), matchTableIndexPool.buildXmlDataForTableIndex());
+    public Map<String, List<XmlData>> findTitleIndex(List<XmlData> storesGroup){
+        Map<String, List<XmlData>> xmlDataForTableIndex = new LinkedHashMap<>();
+        // 记录已作为表格标识行的单元格, 防止重复用在不同表格
+        Set<XmlData> useXmlData = new HashSet<>();
+        tableIndexPools.tryMatchIndexs(storesGroup, matchTableIndexPools -> {
+            for (TableIndexPools.TableIndexPool matchTableIndexPool : matchTableIndexPools) {
+                Optional<List<XmlData>> tableIndexXmlDatas = matchTableIndexPool.buildXmlDataForTableIndex(useXmlData);
+                tableIndexXmlDatas.ifPresent(xmlDatas ->
+                        xmlDataForTableIndex.put(matchTableIndexPool.getName(), xmlDatas));
+
             }
         });
         return xmlDataForTableIndex;

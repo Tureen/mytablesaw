@@ -1,7 +1,6 @@
 package com.tulane.mytablesaw.excel.index;
 
-import com.tulane.mytablesaw.excel.TableSawManager;
-import com.tulane.mytablesaw.excel.XmlResolve;
+import com.tulane.mytablesaw.excel.XmlData;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -22,8 +21,8 @@ public class TableIndexPools {
         }
     }
 
-    public void tryMatchIndexs(List<XmlResolve.XmlData> storesGroup, Consumer<List<TableIndexPool>> consumer) {
-        for (XmlResolve.XmlData xmlData : storesGroup) {
+    public void tryMatchIndexs(List<XmlData> storesGroup, Consumer<List<TableIndexPool>> consumer) {
+        for (XmlData xmlData : storesGroup) {
             tryMatchIndex(xmlData);
         }
         List<TableIndexPool> matchAllIndex = isMatchAllIndex();
@@ -33,14 +32,14 @@ public class TableIndexPools {
         clearPools();
     }
 
-    private void tryMatchIndex(XmlResolve.XmlData xmlData) {
+    private void tryMatchIndex(XmlData xmlData) {
         for (TableIndexPool tableIndexPool : tableIndexPools) {
             tableIndexPool.tryMatchIndex(xmlData);
         }
     }
 
     private List<TableIndexPool> isMatchAllIndex() {
-        List<TableIndexPool> matchTableIndexPools = new ArrayList<>();
+        List<TableIndexPool> matchTableIndexPools = new LinkedList<>();
         for (TableIndexPool tableIndexPool : tableIndexPools) {
             if (tableIndexPool.isMatchAllIndex()) {
                 matchTableIndexPools.add(tableIndexPool);
@@ -59,7 +58,7 @@ public class TableIndexPools {
         private String name;
         private List<String> titleIndex;
         private Map<String, Integer> titleIndexsByCount;
-        private Map<String, Queue<XmlResolve.XmlData>> data;
+        private Map<String, Queue<XmlData>> data;
 
         public TableIndexPool(String name, List<String> titleIndex) {
             this.name = name;
@@ -73,7 +72,7 @@ public class TableIndexPools {
             for (String index : titleIndex) {
                 Integer integer = titleIndexsByCount.get(index);
                 if(integer == null){
-                    integer = 1;
+                    integer = 0;
                 }
                 titleIndexsByCount.put(index, ++integer);
             }
@@ -83,22 +82,23 @@ public class TableIndexPools {
             }
         }
 
-        public void tryMatchIndex(XmlResolve.XmlData xmlData){
+        public boolean tryMatchIndex(XmlData xmlData){
             if(!data.containsKey(xmlData.getContext())){
-                return;
+                return false;
             }
-            data.computeIfAbsent(xmlData.getContext(), x -> new LinkedList<>()).add(xmlData);
+            data.computeIfAbsent(xmlData.getContext(), x -> new LinkedList<>()).offer(xmlData);
+            return true;
         }
 
         public boolean isMatchAllIndex(){
-            Optional<Map.Entry<String, Queue<XmlResolve.XmlData>>> optionalEntry = data.entrySet().stream().filter(x -> x.getValue() == null).findAny();
+            Optional<Map.Entry<String, Queue<XmlData>>> optionalEntry = data.entrySet().stream().filter(x -> x.getValue() == null).findAny();
             if(optionalEntry.isPresent()){
                 return false;
             }
             for (Map.Entry<String, Integer> entry : titleIndexsByCount.entrySet()) {
                 String index = entry.getKey();
                 Integer count = entry.getValue();
-                Queue<XmlResolve.XmlData> xmlDataQueue = data.get(index);
+                Queue<XmlData> xmlDataQueue = data.get(index);
                 if(xmlDataQueue == null || xmlDataQueue.size() < count){
                     return false;
                 }
@@ -110,13 +110,23 @@ public class TableIndexPools {
             data.replaceAll((k, v) -> null);
         }
 
-        public List<XmlResolve.XmlData> buildXmlDataForTableIndex(){
-            List<XmlResolve.XmlData> xmlDatas = new LinkedList<>();
+        public Optional<List<XmlData>> buildXmlDataForTableIndex(Set<XmlData> useXmlData){
+            List<XmlData> xmlDatas = new LinkedList<>();
             for (String index : titleIndex) {
-                XmlResolve.XmlData xmlData = data.get(index).poll();
-                xmlDatas.add(xmlData);
+                while(true){
+                    // 如果队列用完, 代表未检索到对应标识行的单元格, 此表格标识行无法构建
+                    if(data.isEmpty()){
+                        return Optional.empty();
+                    }
+                    XmlData xmlData = data.get(index).poll();
+                    if(!useXmlData.contains(xmlData)){
+                        useXmlData.add(xmlData);
+                        xmlDatas.add(xmlData);
+                        break;
+                    }
+                }
             }
-            return xmlDatas;
+            return Optional.of(xmlDatas);
         }
 
         public String getName() {

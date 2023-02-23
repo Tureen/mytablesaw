@@ -34,64 +34,6 @@ public class XmlResolve {
 
     private final Stack<XmlData> dataStack = new Stack<>();
 
-    public static class XmlData{
-        private final XSSFDataType dataType;
-        private final short formatIndex;
-        private final String formatString;
-        private String context;
-
-        private final XmlRow xmlRow;
-
-        public XmlData(XSSFDataType dataType, short formatIndex, String formatString, XmlRow xmlRow) {
-            this.dataType = dataType;
-            this.formatIndex = formatIndex;
-            this.formatString = formatString;
-            this.xmlRow = xmlRow;
-        }
-
-        public void setContext(String context) {
-            this.context = context;
-        }
-
-        public XSSFDataType getDataType() {
-            return dataType;
-        }
-
-        public short getFormatIndex() {
-            return formatIndex;
-        }
-
-        public String getFormatString() {
-            return formatString;
-        }
-
-        public String getContext() {
-            return context;
-        }
-
-        public XmlRow getXmlRow() {
-            return xmlRow;
-        }
-    }
-
-    static class XmlRow{
-        private final  int row;
-        private final  int col;
-
-        public XmlRow(int row, int col) {
-            this.row = row;
-            this.col = col;
-        }
-
-        public int getRow() {
-            return row;
-        }
-
-        public int getCol() {
-            return col;
-        }
-    }
-
     public void startElement(StylesTable stylesTable, String name, Attributes attributes){
         if (name.equals("c")) {
             preExecCell(stylesTable, attributes);
@@ -145,9 +87,9 @@ public class XmlResolve {
         // 根据r属性获取其列下标，从0开始
         int col = cellReference.getCol();
         int row = cellReference.getRow();
-        XmlRow xmlRow = new XmlRow(row, col);
+        XmlData.XmlPosition xmlPosition = new XmlData.XmlPosition(row, col);
 
-        XmlData xmlData = new XmlData(dataType, formatIndex, formatString, xmlRow);
+        XmlData xmlData = new XmlData(dataType, formatIndex, formatString, xmlPosition);
         dataStack.push(xmlData);
     }
 
@@ -201,11 +143,11 @@ public class XmlResolve {
                     try {
                         isADateFormat = DateUtil.isADateFormat(xmlData.getFormatIndex(), xmlData.getFormatString());
                     } catch (Exception e) {
-                        System.out.println("this.formatIndex" + xmlData.formatIndex + "-this.formatString:" + xmlData.formatString);
+                        System.out.println("this.formatIndex" + xmlData.getFormatIndex() + "-this.formatString:" + xmlData.getFormatIndex());
                         throw e;
                     }
                     if (isADateFormat
-                            || DATE_FORMAT_INDEX31 == xmlData.formatIndex || DATE_FORMAT_INDEX28 == xmlData.formatIndex) {
+                            || DATE_FORMAT_INDEX31 == xmlData.getFormatIndex() || DATE_FORMAT_INDEX28 == xmlData.getFormatIndex()) {
                         Date date = DateUtil.getJavaDate(n);
                         /*
                          * Excel传入的日期如果解析不了的话，date的值为null
@@ -226,14 +168,14 @@ public class XmlResolve {
                             context = msdatetimeFormat.format(date);
                         }
                         // 短日期格式不正确start
-                        if (StringUtils.equals("yyyy\\-mm\\-dd", xmlData.formatString)) {
+                        if (StringUtils.equals("yyyy\\-mm\\-dd", xmlData.getFormatString())) {
                             context = new SimpleDateFormat("yyyy-MM-dd").format(date);
                         }
                         // 短日期格式不正确end
                     } else {
-                        if (xmlData.formatIndex >= 0 && StringUtils.isNotBlank(xmlData.formatString)) {
+                        if (xmlData.getFormatIndex() >= 0 && StringUtils.isNotBlank(xmlData.getFormatString())) {
                             context = SpecCharPattern
-                                    .matcher(formatter.formatRawCellContents(n, xmlData.formatIndex, xmlData.formatString))
+                                    .matcher(formatter.formatRawCellContents(n, xmlData.getFormatIndex(), xmlData.getFormatString()))
                                     .replaceAll("");
 //                                if (context != null && context.endsWith("%")) {
 //                                    context = DecimalProp.percentToDoubleString(lastContents);
@@ -257,13 +199,13 @@ public class XmlResolve {
         return stores;
     }
 
-    public static Map<Integer, List<XmlData>> getStoresGroupByRow(List<XmlData> stores) {
+    public static Map<Integer, LinkedList<XmlData>> getStoresGroupByRow(List<XmlData> stores) {
         return stores.stream().collect(
-                Collectors.groupingBy(xmlData -> xmlData.getXmlRow().getRow(), LinkedHashMap::new, Collectors.toCollection(LinkedList::new)));
+                Collectors.groupingBy(xmlData -> xmlData.getXmlPosition().getRow(), LinkedHashMap::new, Collectors.toCollection(LinkedList::new)));
     }
 
-    public static Map<Integer, List<XmlData>> getStoresGroupByCol(List<XmlData> stores) {
+    public static Map<Integer, LinkedList<XmlData>> getStoresGroupByCol(List<XmlData> stores) {
         return stores.stream().collect(
-                Collectors.groupingBy(xmlData -> xmlData.getXmlRow().getCol(), LinkedHashMap::new, Collectors.toCollection(LinkedList::new)));
+                Collectors.groupingBy(xmlData -> xmlData.getXmlPosition().getCol(), LinkedHashMap::new, Collectors.toCollection(LinkedList::new)));
     }
 }
